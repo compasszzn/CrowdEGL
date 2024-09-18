@@ -13,49 +13,29 @@ import numpy as np
 import time
 
 parser = argparse.ArgumentParser(description='Graph Mechanics Networks')
-parser.add_argument('--exp_name', type=str, default='exp_1', metavar='N', help='experiment_name')
 
 parser.add_argument('--epochs', type=int, default=5000, metavar='N',
                     help='number of epochs to train (default: 10)')
-
-parser.add_argument('--no-cuda', action='store_true', default=False,
-                    help='enables CUDA training')
-parser.add_argument('--log_interval', type=int, default=1, metavar='N',
-                    help='how many batches to wait before logging training status')
-parser.add_argument('--test_interval', type=int, default=5, metavar='N',
-                    help='how many epochs to wait before logging test')
 parser.add_argument('--lr', type=float, default=5e-4, metavar='N',
                     help='learning rate')
+parser.add_argument('--test_interval', type=int, default=5, metavar='N',
+                    help='how many epochs to wait before logging test')
+parser.add_argument('--no-cuda', action='store_true', default=False,
+                    help='enables CUDA training')
 parser.add_argument('--nf', type=int, default=64, metavar='N',
                     help='hidden dim')
-
-parser.add_argument('--attention', type=int, default=0, metavar='N',
-                    help='attention in the ae model')
 parser.add_argument('--n_layers', type=int, default=4, metavar='N',
                     help='number of layers for the autoencoder')
-parser.add_argument('--max_training_samples', type=int, default=500, metavar='N',
-                    help='maximum amount of training samples')
 parser.add_argument('--weight_decay', type=float, default=1e-10, metavar='N',
                     help='weight decay')
-parser.add_argument('--norm_diff', type=eval, default=False, metavar='N',
-                    help='normalize_diff')
-parser.add_argument('--tanh', type=eval, default=False, metavar='N',
-                    help='use tanh')
-parser.add_argument('--delta_frame', type=int, default=50,
-                    help='Number of frames delta.')
-parser.add_argument('--mol', type=str, default='aspirin',
-                    help='Name of the molecule.')
 parser.add_argument('--data_dir', type=str, default='CrowdEGL/data',
                     help='Data directory.')
-parser.add_argument('--learnable', type=eval, default=False, metavar='N',
-                    help='Use learnable FK.')
-parser.add_argument('--dataset', type=str, default='90',
+parser.add_argument('--dataset', type=str, default='junc',choices=['90','120','bi','uni','low','up','cor','junc'],
                     help='Data directory.')
-parser.add_argument("--config_by_file", default=False, action="store_true", )
-parser.add_argument('--gpus_num', type=str, default="6",
+parser.add_argument('--gpus_num', type=str, default="2",
                     help='Model name')
 parser.add_argument('--lambda_rate', type=float, default=0.7, metavar='N',
-                    help='use tanh')
+                    help='rate that control equivariant')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--batch_size', type=int, default=100, metavar='N',
@@ -93,15 +73,18 @@ def main():
     reflect_y = torch.FloatTensor([[1, 0], [0, -1]])
     
 
-    if args.dataset=='120':
+    if '120' in args.dataset:
         group = [torch.eye(2), rotate_120, torch.mm(rotate_120, rotate_120)]
-    elif args.dataset=='90':
+    elif '90' in args.dataset:
         group = [torch.eye(2), rotate_90, torch.mm(rotate_90, rotate_90), torch.mm(rotate_90, torch.mm(rotate_90, rotate_90))] 
+    elif 'bi' in args.dataset or 'uni' in args.dataset or 'junc' in args.dataset or 'low' in args.dataset or 'up' in args.dataset:
+        group = [torch.eye(2), reflect_x] ###BIA Tjunc mouthhole   
+    elif 'cor' in args.dataset:
+        group = [torch.eye(2), torch.mm(rotate_90, reflect_x)]
     group = [op.to(device) for op in group]
 
     model = Crowdegl(input_dim=6, hidden_nf=args.nf, group=group, n_layers=args.n_layers, device=device, recurrent=True)
 
-    print(model)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
     results = {'epochs': [], 'loss': [], 'train loss': []}
@@ -125,7 +108,6 @@ def main():
                 best_epoch = epoch
             print("*** Best Val Loss: %.5f \t Best Test Loss: %.5f \t Best apoch %d"
                   % (best_val_loss, best_test_loss, best_epoch))
-            print(args)
             
             if epoch - best_epoch > 100:
                 break
