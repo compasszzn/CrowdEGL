@@ -52,7 +52,7 @@ parser.add_argument('--learnable', type=eval, default=False, metavar='N',
 parser.add_argument('--dataset', type=str, default='90',
                     help='Data directory.')
 parser.add_argument("--config_by_file", default=False, action="store_true", )
-parser.add_argument('--gpus_num', type=str, default="7",
+parser.add_argument('--gpus_num', type=str, default="6",
                     help='Model name')
 parser.add_argument('--lambda_rate', type=float, default=0.7, metavar='N',
                     help='use tanh')
